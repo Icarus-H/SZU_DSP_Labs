@@ -1,20 +1,21 @@
 /********************************************************************
-* ÎÄ¼şÃû£º  demo9
-* ÃèÊö:   µçÑ¹±í²ÉÑùÊµÑé
-
+* æ–‡ä»¶åï¼š  demo8
+* æè¿°:   ç”µå‹è¡¨é‡‡æ ·å®éªŒ
+æè¿°:   ç”µå‹è¡¨é‡‡æ ·å®éªŒ ï¼ŒD8 å’Œæ•°ç ç®¡æ˜¯å¯¹åº”ç€çš„ï¼Œæ•°ç ç®¡è¿‡äº†1.5 D9å°±ä¼šäº®ï¼Œè€ŒD9å¯¹åº”ç€å¦ä¸€ä¸ªé€šé“ï¼Œæ•°å€¼æ˜¯çœ‹ä¸è§çš„ï¼Œé™¤éå¼€debug
+*   æˆ‘ä¸çŸ¥é“é™¤äº†0ä¹‹å¤–çš„é€šé“éƒ½æ˜¯å¹²å˜›çš„ï¼Œæ‹¿åˆ°çš„æ•°å€¼ä¹Ÿå¥‡å¥‡æ€ªæ€ªçš„ï¼Œç›®å‰å°±çŸ¥é“1ï¼Œ2ï¼Œ7ï¼ˆ7è¿˜ä¸å¥½ç”¨ï¼Œæ‹¿åˆ°çš„æ•°å€¼ä¼šè·³ï¼‰æ˜¯èƒ½ç”¨çš„ï¼Œå…¶ä»–çš„æ²¡è¯•è¿‡ï¼Œ8å’Œ9æ˜¯ä¸è¡Œçš„
 **********************************************************************/
 /********************************************************************
-// ¹¦ÄÜÃèÊö:
-//      ÓÃÌøÏßÃ±½«J9²å¼şµÄ1,2Òı½Å¶Ì½Ó
-//    Í¨¹ıADCÍ¨µÀA0²É¼¯Ä£ÄâµçÑ¹Öµ£¬È»ºóÍ¨¹ıSPI´«Êä¸øÊıÂë¹Ü
-//    Í¨¹ıÊıÂë¹ÜÏÔÊ¾µçÑ¹Öµ
+// åŠŸèƒ½æè¿°:
+//      ç”¨è·³çº¿å¸½å°†J9æ’ä»¶çš„1,2å¼•è„šçŸ­æ¥
+//    é€šè¿‡ADCé€šé“A0é‡‡é›†æ¨¡æ‹Ÿç”µå‹å€¼ï¼Œç„¶åé€šè¿‡SPIä¼ è¾“ç»™æ•°ç ç®¡
+//    é€šè¿‡æ•°ç ç®¡æ˜¾ç¤ºç”µå‹å€¼
 ********************************************************************/
 //#include "demo5.h"
 //#include "demo7.h"
 #include "demo9.h"
+#define stuNum 0x07 // å­¦å·æœ«ä½ï¼Œç”¨ä½œç¬¬äºŒé€šé“
 
-
-/*********************************************º¯ÊıÉêÃ÷************************************************/
+/*********************************************å‡½æ•°ç”³æ˜************************************************/
 static void DisData_Trans(Uint16 data);
 static void Sellect_Bit(Uint16 i);
 static void Init_LEDS_Gpio(void);
@@ -22,33 +23,31 @@ static void Init_Light_Gpio(void);
 static void spi_xmit(Uint16 a);
 static void spi_fifo_init(void);
 static void spi_init(void);
-static int getVin(Uint32 Res);
+void showVin(Uint32 Res);
 static void showLEDs(int data);
-static void selectLights(void);
-static __interrupt void adc_int(void);
+__interrupt void adc_int(void);
 static __interrupt void cpu_timer0_isr(void);
 //static void delay(Uint32 t);
 /*****************************************************************************************************/
 
-/************************************¶¨ÒåÏà¹Ø±äÁ¿*********************************************/
-static unsigned char msg[10]={0xC0,0xf9,0xA4,0xB0,0x99,0x92,0x82,0xF8,0x80,0x90};  //¶ÎÂë£º0~9
-static unsigned char DisData_Bit[4] = {0};                                         //´æ·Å²ğ·ÖºóµÄËÄÎ»Êı×Ö
-static Uint16 DisData = 1234;                                                      //ÏÔÊ¾µÄÊı×Ö
+/************************************å®šä¹‰ç›¸å…³å˜é‡*********************************************/
+static unsigned char msg[10]={0xC0,0xf9,0xA4,0xB0,0x99,0x92,0x82,0xF8,0x80,0x90};  //æ®µç ï¼š0~9
+static unsigned char DisData_Bit[4] = {0};                                         //å­˜æ”¾æ‹†åˆ†åçš„å››ä½æ•°å­—
+static Uint16 DisData = 1234;                                                      //æ˜¾ç¤ºçš„æ•°å­—
 static Uint16 Loop = 0;
 
 
-static volatile  int RES1=0;
-static volatile  int RES2=0;
+static volatile  Uint16 RES=0;
 
-// ADCÆô¶¯²ÎÊı
+// ADCå¯åŠ¨å‚æ•°
 #define ADC_MODCLK 0x3   // HSPCLK = SYSCLKOUT/2*ADC_MODCLK2 = 150/(2*3)     = 25MHz
-#define ADC_CKPS   0x0F   // ADC Ä£¿éÊ±ÖÓ = HSPCLK/1      = 25MHz/(1)     = 25MHz
-#define ADC_SHCLK  0x1   // ²ÉÑù´°¿ÚÊ±¼ä                 = 2 ADC ÖÜÆÚ
-#define AVG        1000  // Æ½¾ù²ÉÑùÏŞÖµ
+#define ADC_CKPS   0x0F   // ADC æ¨¡å—æ—¶é’Ÿ = HSPCLK/1      = 25MHz/(1)     = 25MHz
+#define ADC_SHCLK  0x1   // é‡‡æ ·çª—å£æ—¶é—´                 = 2 ADC å‘¨æœŸ
+#define AVG        1000  // å¹³å‡é‡‡æ ·é™å€¼
 #define ZOFFSET    0x00
-#define BUF_SIZE   1024  // ²ÉÑù»º³åÆ÷³ß´ç
+#define BUF_SIZE   1024  // é‡‡æ ·ç¼“å†²å™¨å°ºå¯¸
 
-// ¸ÃÀı³ÌÊ¹ÓÃµÄÈ«¾Ö±äÁ¿
+// è¯¥ä¾‹ç¨‹ä½¿ç”¨çš„å…¨å±€å˜é‡
 //static Uint16 SampleTable[BUF_SIZE];
 
 
@@ -63,36 +62,36 @@ static void Init_Light_Gpio(void){
     GpioMuxRegs.GPAQUAL.all=0x0000;
     EDIS;
 
-    GpioDataRegs.GPADAT.all    =0x0000;//GPIOA0-A7Êä³öÇå0£¬Ê¹LED1µÆÃğ
+    GpioDataRegs.GPADAT.all    =0x0000;//GPIOA0-A7è¾“å‡ºæ¸…0ï¼Œä½¿LED1ç¯ç­
 }
 
 
-/******************************ÊıÂë¹ÜÎ»Ñ¡ IO ½Ó¿Ú³õÊ¼»¯*******************************************/
+/******************************æ•°ç ç®¡ä½é€‰ IO æ¥å£åˆå§‹åŒ–*******************************************/
 
 static void Init_LEDS_Gpio(void)
 {
     EALLOW;
 
 
-    GpioDataRegs.GPBSET.bit.GPIOB8 = 1;                     // Êä³ö¸ßµçÆ½
+    GpioDataRegs.GPBSET.bit.GPIOB8 = 1;                     // è¾“å‡ºé«˜ç”µå¹³
     GpioMuxRegs.GPBMUX.bit.CAP4Q1_GPIOB8 = 0;                   // GPIOB8 = GPIO
     GpioMuxRegs.GPBDIR.bit.GPIOB8 = 1;                      // GPIOB8 = output
 
-    GpioDataRegs.GPBSET.bit.GPIOB9 = 1;                     // Êä³ö¸ßµçÆ½
+    GpioDataRegs.GPBSET.bit.GPIOB9 = 1;                     // è¾“å‡ºé«˜ç”µå¹³
     GpioMuxRegs.GPBMUX.bit.CAP5Q2_GPIOB9 = 0;                   // GPIOB9 = GPIO
     GpioMuxRegs.GPBDIR.bit.GPIOB9 = 1;                      // GPIOB9 = output
 
-    GpioDataRegs.GPBSET.bit.GPIOB10 = 1;                    // Êä³ö¸ßµçÆ½
+    GpioDataRegs.GPBSET.bit.GPIOB10 = 1;                    // è¾“å‡ºé«˜ç”µå¹³
     GpioMuxRegs.GPBMUX.bit.CAP6QI2_GPIOB10 = 0;                     // GPIOB10 = GPIO
     GpioMuxRegs.GPBDIR.bit.GPIOB10 = 1;                     // GPIOB10 = output
 
-    GpioDataRegs.GPBSET.bit.GPIOB13 = 1;                    // Êä³ö¸ßµçÆ½
+    GpioDataRegs.GPBSET.bit.GPIOB13 = 1;                    // è¾“å‡ºé«˜ç”µå¹³
     GpioMuxRegs.GPBMUX.bit.C4TRIP_GPIOB13 = 0;                      // GPIOB13 = GPIO
     GpioMuxRegs.GPBDIR.bit.GPIOB13 = 1;                     // GPIOB13 = output
 
     EDIS;
 
-    RST_BIT1;//¹Ø±ÕÊıÂë¹ÜÏÔÊ¾
+    RST_BIT1;//å…³é—­æ•°ç ç®¡æ˜¾ç¤º
     RST_BIT2;
     RST_BIT3;
     RST_BIT4;
@@ -100,29 +99,29 @@ static void Init_LEDS_Gpio(void)
 ///*****************************************************************************************************/
 //
 //
-///******************************ÊıÂë¹ÜÎ»Ñ¡º¯Êı£¨´ÓµÍÎ»µ½¸ßÎ»É¨Ãè£©***************************************************/
+///******************************æ•°ç ç®¡ä½é€‰å‡½æ•°ï¼ˆä»ä½ä½åˆ°é«˜ä½æ‰«æï¼‰***************************************************/
 static void Sellect_Bit(Uint16 i)
 {
     switch(i)
     {
         case 0:
-            RST_BIT4;                                   //¹Ø¶ÏÊıÂë¹ÜµÚËÄÎ»
-            SET_BIT1;                                   //Ñ¡Í¨ÊıÂë¹ÜµÚÒ»Î»
+            RST_BIT4;                                   //å…³æ–­æ•°ç ç®¡ç¬¬å››ä½
+            SET_BIT1;                                   //é€‰é€šæ•°ç ç®¡ç¬¬ä¸€ä½
             break;
 
         case 1:
-            RST_BIT1;                                   //¹Ø¶ÏÊıÂë¹ÜµÚÒ»Î»
-            SET_BIT2;                                   //Ñ¡Í¨ÊıÂë¹ÜµÚ¶şÎ»
+            RST_BIT1;                                   //å…³æ–­æ•°ç ç®¡ç¬¬ä¸€ä½
+            SET_BIT2;                                   //é€‰é€šæ•°ç ç®¡ç¬¬äºŒä½
             break;
 
         case 2:
-            RST_BIT2;                                   //¹Ø¶ÏÊıÂë¹ÜµÚ¶şÎ»
-            SET_BIT3;                                   //Ñ¡Í¨ÊıÂë¹ÜµÚÈıÎ»
+            RST_BIT2;                                   //å…³æ–­æ•°ç ç®¡ç¬¬äºŒä½
+            SET_BIT3;                                   //é€‰é€šæ•°ç ç®¡ç¬¬ä¸‰ä½
             break;
 
         case 3:
-            RST_BIT3;                                   //¹Ø¶ÏÊıÂë¹ÜµÚÈıÎ»
-            SET_BIT4;                                   //Ñ¡Í¨ÊıÂë¹ÜµÚËÄÎ»
+            RST_BIT3;                                   //å…³æ–­æ•°ç ç®¡ç¬¬ä¸‰ä½
+            SET_BIT4;                                   //é€‰é€šæ•°ç ç®¡ç¬¬å››ä½
             break;
 
         default:
@@ -131,18 +130,19 @@ static void Sellect_Bit(Uint16 i)
 }
 /*****************************************************************************************************/
 
-/************************** ²ğ·ÖÒªÏÔÊ¾µÄËÄÎ»Êı±£´æµ½Êı×éDisData_Trans¡¾¡¿*****************************/
+/************************** æ‹†åˆ†è¦æ˜¾ç¤ºçš„å››ä½æ•°ä¿å­˜åˆ°æ•°ç»„DisData_Transã€ã€‘*****************************/
 static void DisData_Trans(Uint16 data)
 {
-    DisData_Bit[3] = data / 1000;                       //Ç§Î»Êı
-    DisData_Bit[2] = data % 1000 / 100 ;                //°ÙÎ»Êı
-    DisData_Bit[1] = data % 100 / 10;                   //Ê®Î»Êı
-    DisData_Bit[0] = data % 10;                         //¸öÎ»Êı
+    DisData_Bit[3] = data / 1000;                       //åƒä½æ•°
+    DisData_Bit[2] = data % 1000 / 100 ;                //ç™¾ä½æ•°
+    DisData_Bit[1] = data % 100 / 10;                   //åä½æ•°
+    DisData_Bit[0] = data % 10;                         //ä¸ªä½æ•°
 }
 /*****************************************************************************************************/
 
 
-/*********************************************ÑÓÊ±º¯Êı************************************************/
+
+/*********************************************å»¶æ—¶å‡½æ•°************************************************/
 static void delay1(Uint32 t)
 {
     Uint32 i = 0;
@@ -150,12 +150,12 @@ static void delay1(Uint32 t)
 }
 /*****************************************************************************************************/
 
-/*********************************************Spi³õÊ¼»¯************************************************/
+/*********************************************Spiåˆå§‹åŒ–************************************************/
 
 static void spi_init()
 {
     SpiaRegs.SPICCR.all =0x004F;                            // Reset on, rising edge, 16-bit char bits
-                                                            //0x000F¶ÔÓ¦Rising Edge£¬0x004F¶ÔÓ¦Falling Edge
+                                                            //0x000Få¯¹åº”Rising Edgeï¼Œ0x004Få¯¹åº”Falling Edge
     SpiaRegs.SPICTL.all =0x0006;                            // Enable master mode, normal phase,
                                                             // enable talk, and SPI int disabled.
     SpiaRegs.SPIBRR =0x007F;
@@ -164,10 +164,10 @@ static void spi_init()
 }
 ///*****************************************************************************************************/
 //
-///****************************************SpiÄ£¿éFIFOÉèÖÃ**********************************************/
+///****************************************Spiæ¨¡å—FIFOè®¾ç½®**********************************************/
 static void spi_fifo_init()
 {
-//  ³õÊ¼»¯ SPI FIFO ¼Ä´æÆ÷
+//  åˆå§‹åŒ– SPI FIFO å¯„å­˜å™¨
     SpiaRegs.SPIFFTX.all=0xE040;
     SpiaRegs.SPIFFRX.all=0x204f;
     SpiaRegs.SPIFFCT.all=0x0;
@@ -175,14 +175,14 @@ static void spi_fifo_init()
 
 /*****************************************************************************************************/
 
-/*********************************************Spi·¢ËÍ************************************************/
+/*********************************************Spiå‘é€************************************************/
 
 static void spi_xmit(Uint16 a)
 {
     SpiaRegs.SPITXBUF=a;
 }
 /*****************************************************************************************************/
-//ÑÓ³Ùº¯Êı
+//å»¶è¿Ÿå‡½æ•°
 
 static void delay_loop8()
 {
@@ -191,148 +191,56 @@ static void delay_loop8()
 }
 
 
-static int getVin(Uint32 Res){
-//    printf("Res:%d\n", Res);
-
-    int Vin;
-    int showdata = 0;
-
-//    for (i=0;i<AVG;i++)
-//    {
-//     Sum+=SampleTable[i];
-//     Sum=Sum/2;
-//    }
-    //ÊäÈëµçÑ¹ºÍADÖµÖ®¼äµÄ¹ØÏµVin/Sum=3/4096£»
-
-    Vin=Res*3*10000/4096;      //½«ÊäÈëµçÑ¹·Å´ó100±¶£¬ÒÔ±ãÓÚµÚ2Î»ÓĞĞ§Ğ¡ÊıµÄËÄÉáÎåÈë¼ÆËã£»
-//    printf("Vin*10:%d\n", Vin);
-    if(Vin%10>=5)//×îºóÒ»Î»ÕûÊı>=5Ê±£¬ÒªÎåÈë£»
-        showdata=Vin/10+1;
-    else
-        showdata=Vin/10;//ÒªËÄÉá£»
-
-//    printf("getVin:%d\n", showdata);
-    return showdata;
-
-
-//    AdcRegs.ADCTRL2.bit.SOC_SEQ1 = 1;
-}
-
-static void showLEDs(int data){
-    int i;
-    DisData_Trans(data);
-    for(i=0;i<16;i++)
-    {
-       for(Loop=0;Loop<4;Loop++)                               //·Ö±ğÏÔÊ¾ËÄÎ»
-       {
-           Sellect_Bit(Loop);                                  //Ñ¡ÔñÒªÉ¨ÃèµÄÊıÂë¹ÜÎ»
-           if(Loop==3)
-               spi_xmit(msg[DisData_Bit[Loop]]+0x80);
-           else
-           spi_xmit(msg[DisData_Bit[Loop]]);                   //´®ĞĞÊä³öÒªÏÔÊ¾µÄÊı×Ö
-           delay1(1000);                                        //ÑÓÊ±ÅäºÏÈËÑÛ·´Ó¦Ê±¼ä
-       }
-//       delay1(250);
-    }
-}
-
-static void selectLights(void){
-
-    if(RES1>1500){
-        printf("(RES1):%d\n",RES1);
-        printf("(RES2):%d\n",RES2);
-        printf("LightA8:up\n");
-        GpioDataRegs.GPASET.bit.GPIOA0 = 1;
-    }else{
-        printf("(RES1):%d\n",RES1);
-        printf("(RES2):%d\n",RES2);
-        printf("LightA8:down\n");
-        GpioDataRegs.GPACLEAR.bit.GPIOA0 = 1;
-    }
-    if(RES2>1500){
-        printf("(RES1):%d\n",RES1);
-        printf("(RES2):%d\n",RES2);
-        printf("LightA9:up\n");
-        GpioDataRegs.GPASET.bit.GPIOA1 = 1;
-    }else{
-        printf("(RES1):%d\n",RES1);
-        printf("(RES2):%d\n",RES2);
-        printf("LightA9:down\n");
-        GpioDataRegs.GPACLEAR.bit.GPIOA1 = 1;
-    }
-}
-
-static __interrupt void adc_int(void){
-    printf("adc_int\n");
-
-    printf("(AdcRegs.ADCRESULT0>>4):%d\n",(AdcRegs.ADCRESULT0>>4));
-    printf("(AdcRegs.ADCRESULT1>>4):%d\n",(AdcRegs.ADCRESULT1>>4));
-
-    RES1 = getVin((AdcRegs.ADCRESULT0>>4));
-    RES2 = getVin((AdcRegs.ADCRESULT1>>4));
-
-    selectLights();
-
-//    AdcRegs.ADCTRL2.bit.RST_SEQ1 = 1;         // Reset SEQ1
-    AdcRegs.ADCST.bit.INT_SEQ1_CLR = 1;       // Clear INT SEQ1 bit
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;   // Acknowledge interrupt to PIE
-
-
-}
-
-static __interrupt void cpu_timer0_isr(void)
-{
-
-    showLEDs(getVin((AdcRegs.ADCRESULT0>>4)));
-
-   // Acknowledge this interrupt to receive more interrupts from group 1
-   PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
-}
-
 void demo9(void)
 {
+//   Uint16 i;
 
-// ²½Öè 1. ³õÊ¼»¯ÏµÍ³¿ØÖÆ:
-// ÉèÖÃPLL, WatchDog, Ê¹ÄÜÍâÉèÊ±ÖÓ
-// ÏÂÃæÕâ¸öº¯Êı¿ÉÒÔ´ÓDSP281x_SysCtrl.cÎÄ¼şÖĞÕÒµ½.
+//   Uint32 Vin;
+
+
+// æ­¥éª¤ 1. åˆå§‹åŒ–ç³»ç»Ÿæ§åˆ¶:
+// è®¾ç½®PLL, WatchDog, ä½¿èƒ½å¤–è®¾æ—¶é’Ÿ
+// ä¸‹é¢è¿™ä¸ªå‡½æ•°å¯ä»¥ä»DSP281x_SysCtrl.cæ–‡ä»¶ä¸­æ‰¾åˆ°.
    InitSysCtrl();
 
-// ²½Öè 2. ³õÊ¼»¯Í¨ÓÃÊäÈëÊä³ö¶àÂ·¸´ÓÃÆ÷GPIO:
-// Õâ¸öº¯ÊıÔÚDSP281x_Gpio.cÔ´ÎÄ¼şÖĞ±»¶¨ÒåÁË
-// InitGpio();  // ±¾ÀıÖ±½ÓÌø¹ı¸Ã²½Öè
-// ½öÉèÖÃÏàÓ¦GPIOÎªÎªSPI¹¦ÄÜÒı½Å
+// æ­¥éª¤ 2. åˆå§‹åŒ–é€šç”¨è¾“å…¥è¾“å‡ºå¤šè·¯å¤ç”¨å™¨GPIO:
+// è¿™ä¸ªå‡½æ•°åœ¨DSP281x_Gpio.cæºæ–‡ä»¶ä¸­è¢«å®šä¹‰äº†
+// InitGpio();  // æœ¬ä¾‹ç›´æ¥è·³è¿‡è¯¥æ­¥éª¤
+// ä»…è®¾ç½®ç›¸åº”GPIOä¸ºä¸ºSPIåŠŸèƒ½å¼•è„š
 
-// ±¾ÀıÌØ¶¨µÄÊ±ÖÓÉèÖÃ
+// æœ¬ä¾‹ç‰¹å®šçš„æ—¶é’Ÿè®¾ç½®
    EALLOW;
    SysCtrlRegs.HISPCP.all = ADC_MODCLK; // HSPCLK = SYSCLKOUT/ADC_MODCLK
    EDIS;
 
-   //³õÊ¼»¯SPI
+
+
+   //åˆå§‹åŒ–SPI
    EALLOW;
-   GpioMuxRegs.GPFMUX.all=0x000F;   // Ñ¡ÔñGPIOÎªSPIÒı½Å
-                                    // ¶Ë¿ÚF MUX - x000 0000 0000 1111
+   GpioMuxRegs.GPFMUX.all=0x000F;   // é€‰æ‹©GPIOä¸ºSPIå¼•è„š
+                                    // ç«¯å£F MUX - x000 0000 0000 1111
    EDIS;
 
    Init_LEDS_Gpio();
    Init_Light_Gpio();
 
 
-// ²½Öè 3. Çå³ıËùÓĞÖĞ¶Ï,³õÊ¼»¯ÖĞ¶ÏÏòÁ¿±í:
-// ½ûÖ¹CPUÈ«¾ÖÖĞ¶Ï
+// æ­¥éª¤ 3. æ¸…é™¤æ‰€æœ‰ä¸­æ–­,åˆå§‹åŒ–ä¸­æ–­å‘é‡è¡¨:
+// ç¦æ­¢CPUå…¨å±€ä¸­æ–­
    DINT;
 
-// ³õÊ¼»¯PIE¿ØÖÆ¼Ä´æÆ÷µ½ËûÃÇµÄÄ¬ÈÏ×´Ì¬.
-// Õâ¸öÄ¬ÈÏ×´Ì¬¾ÍÊÇ½ûÖ¹PIEÖĞ¶Ï¼°Çå³ıËùÓĞPIEÖĞ¶Ï±êÖ¾
-// Õâ¸öº¯Êı·ÅÔÚDSP281x_PieCtrl.cÔ´ÎÄ¼şÀï
+// åˆå§‹åŒ–PIEæ§åˆ¶å¯„å­˜å™¨åˆ°ä»–ä»¬çš„é»˜è®¤çŠ¶æ€.
+// è¿™ä¸ªé»˜è®¤çŠ¶æ€å°±æ˜¯ç¦æ­¢PIEä¸­æ–­åŠæ¸…é™¤æ‰€æœ‰PIEä¸­æ–­æ ‡å¿—
+// è¿™ä¸ªå‡½æ•°æ”¾åœ¨DSP281x_PieCtrl.cæºæ–‡ä»¶é‡Œ
    InitPieCtrl();
 
-// ½ûÖ¹CPUÖĞ¶Ï£¬Çå³ıCPUÖĞ¶Ï±êÖ¾Î»
+// ç¦æ­¢CPUä¸­æ–­ï¼Œæ¸…é™¤CPUä¸­æ–­æ ‡å¿—ä½
    IER = 0x0000;
    IFR = 0x0000;
 
-//³õÊ¼»¯PIEÖĞ¶ÏÏòÁ¿±í£¬²¢Ê¹ÆäÖ¸ÏòÖĞ¶Ï·şÎñ×Ó³ÌĞò£¨ISR£©
-// ÕâĞ©ÖĞ¶Ï·şÎñ×Ó³ÌĞò±»·ÅÔÚÁËDSP281x_DefaultIsr.cÔ´ÎÄ¼şÖĞ
-// Õâ¸öº¯Êı·ÅÔÚÁËDSP281x_PieVect.cÔ´ÎÄ¼şÀïÃæ.
+//åˆå§‹åŒ–PIEä¸­æ–­å‘é‡è¡¨ï¼Œå¹¶ä½¿å…¶æŒ‡å‘ä¸­æ–­æœåŠ¡å­ç¨‹åºï¼ˆISRï¼‰
+// è¿™äº›ä¸­æ–­æœåŠ¡å­ç¨‹åºè¢«æ”¾åœ¨äº†DSP281x_DefaultIsr.cæºæ–‡ä»¶ä¸­
+// è¿™ä¸ªå‡½æ•°æ”¾åœ¨äº†DSP281x_PieVect.cæºæ–‡ä»¶é‡Œé¢.
    InitPieVectTable();
 
 // Interrupts that are used in this example are re-mapped to
@@ -345,58 +253,175 @@ void demo9(void)
   ConfigCpuTimer(&CpuTimer0, 150, 200000);
   StartCpuTimer0();
 
-// ²½Öè 4.³õÊ¼»¯Æ¬ÄÚÍâÉè:
+// æ­¥éª¤ 4.åˆå§‹åŒ–ç‰‡å†…å¤–è®¾:
    InitAdc();  // For this example, init the ADC
 
-   spi_fifo_init();   // ³õÊ¼»¯Spi FIFO
-   spi_init();        // ³õÊ¼»¯ SPI
+   spi_fifo_init();   // åˆå§‹åŒ–Spi FIFO
+   spi_init();        // åˆå§‹åŒ– SPI
 
-   // ±¾ÀıĞèÒªÉèÖÃADC²ÎÊı
+   // æœ¬ä¾‹éœ€è¦è®¾ç½®ADCå‚æ•°
    AdcRegs.ADCTRL1.bit.ACQ_PS = ADC_SHCLK;
-   AdcRegs.ADCTRL3.bit.ADCCLKPS = ADC_CKPS;  // ADC Ä£¿éÊ±ÖÓ = HSPCLK/1      = 25MHz/(1)     = 25MHz
-   AdcRegs.ADCTRL1.bit.SEQ_CASC = 1;         // 1  ¼¶ÁªÄ£Ê½
+   AdcRegs.ADCTRL3.bit.ADCCLKPS = ADC_CKPS;  // ADC æ¨¡å—æ—¶é’Ÿ = HSPCLK/1      = 25MHz/(1)     = 25MHz
+   AdcRegs.ADCTRL1.bit.SEQ_CASC = 1;        // 1  çº§è”æ¨¡å¼
+   AdcRegs.ADCCHSELSEQ1.bit.CONV00 = 0x0;   //ADCé€šé“é€‰æ‹©ADCIN0 SEQ1
+   AdcRegs.ADCCHSELSEQ1.bit.CONV01 = stuNum;   //ADCé€šé“ æŒ‰é¡ºåº æ¥ç€ é‡‡æ ·é€šé“ADCINx, è¿™é‡ŒxæŒ‡çš„æ˜¯å­¦å·æœ«å°¾æ•°
+//   AdcRegs.ADCCHSELSEQ2.bit.CONV06 = 0x0;   //ADCé€šé“é€‰æ‹©ADCIN6
+   AdcRegs.ADCTRL1.bit.CONT_RUN = 1;       // è®¾ç½®ä¸ºè¿ç»­è¿è¡Œ
+   AdcRegs.ADCMAXCONV.all = 0x0002;         // æœ€å¤šé‡‡æ · AdcRegs.ADCMAXCONV.all+1 ä¸ª
 
-   AdcRegs.ADCCHSELSEQ1.bit.CONV00 = 0x0;   //ADCÍ¨µÀÑ¡ÔñADCIN0 SEQ1
-
-/*********************************Ñ§ºÅÎ²ºÅÍ¨µÀ****************************************************/
-   AdcRegs.ADCCHSELSEQ1.bit.CONV01 = 0x6;   //ADCÍ¨µÀÑ¡ÔñADCINx
-/************************************************************************************************/
-   AdcRegs.ADCMAXCONV.all = 0x0001;         // ×î¶à²ÉÑù AdcRegs.ADCMAXCONV.all+1 ¸ö
-   AdcRegs.ADCTRL1.bit.CONT_RUN = 1;       // ÉèÖÃÎª  Á¬ĞøÔËĞĞ
-
-   AdcRegs.ADCTRL2.bit.INT_ENA_SEQ1 = 1;
-   AdcRegs.ADCTRL2.bit.INT_MOD_SEQ1 = 0;
-   AdcRegs.ADCTRL2.bit.RST_SEQ1 = 1;
-   AdcRegs.ADCTRL3.bit.SMODE_SEL = 0;
+   AdcRegs.ADCTRL2.bit.INT_ENA_SEQ1 = 0;    // çœŸç‰›é€¼ï¼Œæˆ‘å¾—æŠŠä¸­æ–­å…³äº†å†æ¥æ‰èƒ½åšä¸­æ–­å®éªŒï¼Œæ„Ÿè§‰æ˜¯ä¸‹é¢çš„ä¸­æ–­å‡½æ•°å–§å®¾å¤ºä¸»æŠŠADCä¸­æ–­äº†
+   AdcRegs.ADCTRL2.bit.INT_MOD_SEQ1 = 1;
+   AdcRegs.ADCTRL2.bit.INT_ENA_SEQ2 = 0;
+   AdcRegs.ADCTRL2.bit.INT_MOD_SEQ2 = 1;
 
 
 // Enable CPU INT1
   IER |= M_INT1;
 
 // Enable TINT0 in the PIE: Group 1 interrupt 7
-  PieCtrlRegs.PIEIER1.bit.INTx6 = 1; //adc
-  PieCtrlRegs.PIEIER1.bit.INTx7 = 1; //timer
+  PieCtrlRegs.PIEIER1.bit.INTx6 = 1;
+  PieCtrlRegs.PIEIER1.bit.INTx7 = 1;
 
 // Enable global Interrupts and higher priority real-time debug events:
   EINT;   // Enable Global interrupt INTM
   ERTM;   // Enable Global realtime interrupt DBGM
 
-// Step 5.ÓÃ»§Ö¸¶¨´úÂë£¬Ê¹ÄÜÖĞ¶Ï:
+// Step 5.ç”¨æˆ·æŒ‡å®šä»£ç ï¼Œä½¿èƒ½ä¸­æ–­:
 
-// ²ÉÑù±íÇå0
+// é‡‡æ ·è¡¨æ¸…0
 //   for (i=0; i<BUF_SIZE; i++)
 //   {
 //     SampleTable[i] = 0;
 //   }
-   //¹ØÊıÂë¹Ü£»
+   //å…³æ•°ç ç®¡ï¼›
    spi_xmit(0xFFFF);
-     //ÑÓ³Ù
+     //å»¶è¿Ÿ
       delay_loop8();
 
-   // Èí¼şÆô¶¯SEQ1
+   // è½¯ä»¶å¯åŠ¨SEQ1
    AdcRegs.ADCTRL2.bit.SOC_SEQ1 = 1;
+   AdcRegs.ADCTRL2.bit.SOC_SEQ2 = 1;
 
-   while(1){}
+   while(1){
+
+   }
+}
+
+static void showVin(Uint32 Res){
+    printf("showVin:Res:%d\n", Res);
+
+    int Vin;
+    int showdata = 0;
+
+//    for (i=0;i<AVG;i++)
+//    {
+//     Sum+=SampleTable[i];
+//     Sum=Sum/2;
+//    }
+    //è¾“å…¥ç”µå‹å’ŒADå€¼ä¹‹é—´çš„å…³ç³»Vin/Sum=3/4096ï¼›
+
+    Vin=Res*3*10000/4096;      //å°†è¾“å…¥ç”µå‹æ”¾å¤§100å€ï¼Œä»¥ä¾¿äºç¬¬2ä½æœ‰æ•ˆå°æ•°çš„å››èˆäº”å…¥è®¡ç®—ï¼›
+//    printf("Vin*10:%d\n", Vin);
+    if(Vin%10>=5)//æœ€åä¸€ä½æ•´æ•°>=5æ—¶ï¼Œè¦äº”å…¥ï¼›
+        showdata=Vin/10+1;
+    else
+        showdata=Vin/10;//è¦å››èˆï¼›
+
+    if(showdata > 1500){
+        printf("LightA8:up\n");
+//        GpioDataRegs.GPACLEAR.all = 0xFFFF;
+        GpioDataRegs.GPASET.bit.GPIOA0 = 1;
+    }
+    else{
+        printf("LightA8:down\n");
+//        GpioDataRegs.GPACLEAR.all = 0xFFFF;
+        GpioDataRegs.GPACLEAR.bit.GPIOA0 = 1;
+    }
+
+    printf("showdata:%d\n", showdata);
+    showLEDs(showdata);
+
+//    AdcRegs.ADCTRL2.bit.SOC_SEQ1 = 1;
+}
+
+static void showVin1(Uint32 Res){
+    printf("showVin:Res:%d\n", Res);
+
+    int Vin;
+    int showdata = 0;
+
+//    for (i=0;i<AVG;i++)
+//    {
+//     Sum+=SampleTable[i];
+//     Sum=Sum/2;
+//    }
+    //è¾“å…¥ç”µå‹å’ŒADå€¼ä¹‹é—´çš„å…³ç³»Vin/Sum=3/4096ï¼›
+
+    Vin=Res*3*10000/4096;      //å°†è¾“å…¥ç”µå‹æ”¾å¤§100å€ï¼Œä»¥ä¾¿äºç¬¬2ä½æœ‰æ•ˆå°æ•°çš„å››èˆäº”å…¥è®¡ç®—ï¼›
+//    printf("Vin*10:%d\n", Vin);
+    if(Vin%10>=5)//æœ€åä¸€ä½æ•´æ•°>=5æ—¶ï¼Œè¦äº”å…¥ï¼›
+        showdata=Vin/10+1;
+    else
+        showdata=Vin/10;//è¦å››èˆï¼›
+
+    if(showdata > 1500){
+        printf("LightA8:up\n");
+//        GpioDataRegs.GPACLEAR.all = 0xFFFF;
+        GpioDataRegs.GPASET.bit.GPIOA1 = 1;
+    }
+    else{
+        printf("LightA8:down\n");
+//        GpioDataRegs.GPACLEAR.all = 0xFFFF;
+        GpioDataRegs.GPACLEAR.bit.GPIOA1 = 1;
+    }
+
+    printf("showdata:%d\n", showdata);
+//    showLEDs(showdata);
+
+//    AdcRegs.ADCTRL2.bit.SOC_SEQ1 = 1;
+}
+
+static void showLEDs(int data){
+    int i;
+    DisData_Trans(data);
+    for(i=0;i<16;i++)
+    {
+       for(Loop=0;Loop<4;Loop++)                               //åˆ†åˆ«æ˜¾ç¤ºå››ä½
+       {
+           Sellect_Bit(Loop);                                  //é€‰æ‹©è¦æ‰«æçš„æ•°ç ç®¡ä½
+           if(Loop==3)
+               spi_xmit(msg[DisData_Bit[Loop]]+0x80);
+           else
+           spi_xmit(msg[DisData_Bit[Loop]]);                   //ä¸²è¡Œè¾“å‡ºè¦æ˜¾ç¤ºçš„æ•°å­—
+           delay1(2500);                                       //å»¶æ—¶é…åˆäººçœ¼ååº”æ—¶é—´
+       }
+       delay1(5000);
+    }
+}
+
+
+__interrupt void adc_int(void){
+    printf("adc_int\n");
+
+
+//    RES = AdcRegs.ADCRESULT0;
+//    showVin((AdcRegs.ADCRESULT0>>4));
+    printf("(AdcRegs.ADCRESULT0>>4):%d\n",(AdcRegs.ADCRESULT0>>4));
+
+    AdcRegs.ADCTRL2.bit.RST_SEQ1 = 1;         // Reset SEQ1
+    AdcRegs.ADCST.bit.INT_SEQ1_CLR = 1;       // Clear INT SEQ1 bit
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;   // Acknowledge interrupt to PIE
+
+
+}
+
+static __interrupt void cpu_timer0_isr(void)
+{
+
+   showVin((AdcRegs.ADCRESULT0>>4));
+   showVin1((AdcRegs.ADCRESULT1>>4));
+   // Acknowledge this interrupt to receive more interrupts from group 1
+   PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
 
 //===========================================================================
